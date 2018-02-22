@@ -1,10 +1,41 @@
 import React from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
+import { View, StyleSheet, Platform, Animated } from 'react-native';
 import { TabViewAnimated, TabViewPagerPan } from 'react-native-tab-view';
 import SafeAreaView from 'react-native-safe-area-view';
 
 import ResourceSavingSceneView from '../ResourceSavingSceneView';
 import withCachedChildNavigation from '../../withCachedChildNavigation';
+
+function animateInTabBar(TabBarComponent, fadeInAnimation) {
+  class AnimatedTabBar extends React.PureComponent {
+    constructor(props) {
+      super(props);
+      this.state = {
+        offSet: new Animated.Value(0),
+      };
+    }
+
+    componentDidMount() {
+      Animated.timing(this.state.offSet, {
+        toValue: 1,
+        duration: 1000,
+      }).start();
+    }
+
+    render() {
+      return (
+        <Animated.View
+          style={{
+            opacity: this.state.offSet,
+          }}
+        >
+          <TabBarComponent {...this.props} />
+        </Animated.View>
+      );
+    }
+  }
+  return AnimatedTabBar;
+}
 
 class TabView extends React.PureComponent {
   static defaultProps = {
@@ -96,15 +127,26 @@ class TabView extends React.PureComponent {
 
   _renderTabBar = props => {
     const {
+      router,
       tabBarOptions,
       tabBarComponent: TabBarComponent,
       animationEnabled,
+      screenProps,
     } = this.props;
     if (typeof TabBarComponent === 'undefined') {
       return null;
     }
 
-    return (
+    const { state } = this.props.navigation;
+    const options = router.getScreenOptions(
+      this.props.childNavigationProps[state.routes[state.index].key],
+      screenProps || {}
+    );
+
+    const tabBarVisible =
+      options.tabBarVisible == null ? true : options.tabBarVisible;
+
+    return animateInTabBar(
       <TabBarComponent
         {...props}
         {...tabBarOptions}
@@ -155,7 +197,7 @@ class TabView extends React.PureComponent {
       swipeEnabled = swipeEnabled(state);
     }
 
-    if (tabBarComponent !== undefined && tabBarVisible) {
+    if (tabBarComponent !== undefined) {
       if (tabBarPosition === 'bottom') {
         renderFooter = this._renderTabBar;
       } else {
